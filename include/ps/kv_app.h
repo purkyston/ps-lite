@@ -39,6 +39,15 @@ struct KVPairs {
   SArray<Val> vals;
   /** \brief the according value lengths (could be empty) */
   SArray<int> lens;
+
+  void DebugPrint(int id) {
+    LOG(INFO) << "customer_id=" << id << " keys count=" << keys.ptr().use_count() << std::endl;
+    LOG(INFO) << "customer_id=" << id << " vals count=" << vals.ptr().use_count() << std::endl;
+    LOG(INFO) << "customer_id=" << id << " lens count=" << lens.ptr().use_count() << std::endl;
+  }
+
+  ~KVPairs() {
+  }
 };
 
 /**
@@ -522,6 +531,7 @@ void KVWorker<Val>::Process(const Message& msg) {
   // finished, run callbacks
   if (obj_->NumResponse(ts) == Postoffice::Get()->num_servers() - 1)  {
     RunCallback(ts);
+    LOG(INFO) << "callback finish" << std::endl;
   }
 }
 template <typename Val>
@@ -573,6 +583,7 @@ int KVWorker<Val>::Pull_(
       } else {
         CHECK_EQ(vals->size(), total_val);
       }
+      LOG(INFO) << "vals size is right" << std::endl;
       Val* p_vals = vals->data();
       int *p_lens = nullptr;
       if (lens) {
@@ -583,6 +594,7 @@ int KVWorker<Val>::Pull_(
         }
         p_lens = lens->data();
       }
+      LOG(INFO) << "resize lens" << std::endl;
       for (const auto& s : kvs) {
         memcpy(p_vals, s.vals.data(), s.vals.size() * sizeof(Val));
         p_vals += s.vals.size();
@@ -591,10 +603,12 @@ int KVWorker<Val>::Pull_(
           p_lens += s.lens.size();
         }
       }
+      LOG(INFO) << "copy finish" << std::endl;
 
       mu_.lock();
       recv_kvs_.erase(ts);
       mu_.unlock();
+      LOG(INFO) << "run callback" << std::endl;
       if (cb) cb();
     });
 

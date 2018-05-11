@@ -148,6 +148,7 @@ class ZMQVan : public Van {
       zmq_msg_t data_msg;
       SArray<char>* data = new SArray<char>(msg.data[i]);
       int data_size = data->size();
+      LOG(INFO) << my_node().DebugString() << "||i=" << i << "||data use count=" << data->ptr().use_count() << std::endl;
       zmq_msg_init_data(&data_msg, data->data(), data->size(), FreeData, data);
       if (i == n - 1) tag = 0;
       while (true) {

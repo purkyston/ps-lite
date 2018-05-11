@@ -54,7 +54,9 @@ void Customer::Receiving() {
         recv.meta.control.cmd == Control::TERMINATE) {
       break;
     }
+    LOG(INFO) << id() << "  handling" << std::endl;
     recv_handle_(recv);
+    LOG(INFO) << id() << "  recv ~~" << std::endl;
     if (!recv.meta.request) {
       std::lock_guard<std::mutex> lk(tracker_mu_);
       tracker_[recv.meta.timestamp].second++;

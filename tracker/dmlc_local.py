@@ -11,6 +11,7 @@ from threading import Thread
 import tracker
 import signal
 import logging
+import time
 
 keepalive = """
 nrep=0
@@ -18,6 +19,7 @@ rc=254
 while [ $rc -eq 254 ];
 do
     export DMLC_NUM_ATTEMPT=$nrep
+    echo $rc
     %s
     rc=$?;
     nrep=$((nrep+1));
@@ -35,6 +37,7 @@ class LocalLauncher(object):
             env[k] = str(v)
 
         env['DMLC_ROLE'] = role
+        print([(k,v) for k,v in env.items() if k.startswith('DMLC')])
 
         ntrial = 0
         while True:
@@ -46,6 +49,7 @@ class LocalLauncher(object):
                     continue
             else:
                 bash = keepalive % (cmd)
+                logging.info('bash={0}'.format(bash))
                 ret = subprocess.call(bash, shell=True, executable='bash', env = env)
             if ret == 0:
                 logging.debug('Thread %d exit with 0')
