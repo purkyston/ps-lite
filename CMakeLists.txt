@@ -50,7 +50,8 @@ list(APPEND pslite_LINKER_LIBS_L "ipHlpApi.lib" "ws2_32.lib")
 endif()
 
 list(APPEND SOURCE ${proto_srcs}) 
-add_library(pslite ${SOURCE}) 
+add_library(pslite ${SOURCE})
+set(CMAKE_BUILD_TYPE "Debug")
 
 target_link_libraries(pslite ${pslite_LINKER_LIBS})
 
