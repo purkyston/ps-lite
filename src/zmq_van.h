@@ -33,13 +33,17 @@ class ZMQVan : public Van {
   virtual ~ZMQVan() { }
 
  protected:
-  void Start() override {
+  void Start(int customer_id) override {
     // start zmq
-    context_ = zmq_ctx_new();
-    CHECK(context_ != NULL) << "create 0mq context failed";
-    zmq_ctx_set(context_, ZMQ_MAX_SOCKETS, 65536);
+    start_mu_.lock();
+    if (context_ == nullptr) {
+      context_ = zmq_ctx_new();
+      CHECK(context_ != NULL) << "create 0mq context failed";
+      zmq_ctx_set(context_, ZMQ_MAX_SOCKETS, 65536);
+    }
+    start_mu_.unlock();
     // zmq_ctx_set(context_, ZMQ_IO_THREADS, 4);
-    Van::Start();
+    Van::Start(customer_id);
   }
 
   void Stop() override {
@@ -55,7 +59,9 @@ class ZMQVan : public Van {
       CHECK(rc == 0 || errno == ETERM);
       CHECK_EQ(zmq_close(it.second), 0);
     }
+    senders_.clear();
     zmq_ctx_destroy(context_);
+    context_ = nullptr;
   }
 
   int Bind(const Node& node, int max_retry) override {
@@ -64,6 +70,10 @@ class ZMQVan : public Van {
         << "create receiver socket failed: " << zmq_strerror(errno);
     int local = GetEnv("DMLC_LOCAL", 0);
     std::string hostname = node.hostname.empty() ? "*" : node.hostname;
+    int use_kubernetes = GetEnv("DMLC_USE_KUBERNETES", 0);
+    if (use_kubernetes > 0 && node.role == Node::SCHEDULER) {
+      hostname = "0.0.0.0";
+    }
     std::string addr = local ? "ipc:///tmp/" : "tcp://" + hostname + ":";
     int port = node.port;
     unsigned seed = static_cast<unsigned>(time(NULL)+port);
@@ -89,8 +99,7 @@ class ZMQVan : public Van {
       zmq_close(it->second);
     }
     // worker doesn't need to connect to the other workers. same for server
-    if ((node.role == my_node_.role) &&
-        (node.id != my_node_.id)) {
+    if ((node.role == my_node_.role) && (node.id != my_node_.id)) {
       return;
     }
     void *sender = zmq_socket(context_, ZMQ_DEALER);
@@ -136,13 +145,10 @@ class ZMQVan : public Van {
     while (true) {
       if (zmq_msg_send(&meta_msg, socket, tag) == meta_size) break;
       if (errno == EINTR) continue;
-      LOG(WARNING) << "failed to send message to node [" << id
-                   << "] errno: " << errno << " " << zmq_strerror(errno);
       return -1;
     }
-    zmq_msg_close(&meta_msg);
+    // zmq_msg_close(&meta_msg);
     int send_bytes = meta_size;
-
     // send data
     for (int i = 0; i < n; ++i) {
       zmq_msg_t data_msg;
@@ -159,7 +165,7 @@ class ZMQVan : public Van {
                      << ". " << i << "/" << n;
         return -1;
       }
-      zmq_msg_close(&data_msg);
+      // zmq_msg_close(&data_msg);
       send_bytes += data_size;
     }
     return send_bytes;
@@ -173,7 +179,10 @@ class ZMQVan : public Van {
       CHECK(zmq_msg_init(zmsg) == 0) << zmq_strerror(errno);
       while (true) {
         if (zmq_msg_recv(zmsg, receiver_, 0) != -1) break;
-        if (errno == EINTR) continue;
+        if (errno == EINTR) {
+          std::cout << "interrupted";
+          continue;
+        }
         LOG(WARNING) << "failed to receive message. errno: "
                      << errno << " " << zmq_strerror(errno);
         return -1;

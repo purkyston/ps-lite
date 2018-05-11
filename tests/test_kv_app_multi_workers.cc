@@ -2,18 +2,18 @@
 using namespace ps;
 
 void StartServer() {
-  if (!IsServer()) {
-    return;
-  }
+  if (!IsServer()) return;
   auto server = new KVServer<float>(0);
   server->set_request_handle(KVServerDefaultHandle<float>());
   RegisterExitCallback([server](){ delete server; });
 }
 
-void RunWorker() {
-  if (!IsWorker()) return;
-  KVWorker<float> kv(0, 0);
-
+void RunWorker(int customer_id) {
+  Start(customer_id);
+  if (!IsWorker()) {
+    return;
+  }
+  KVWorker<float> kv(0, customer_id);
   // init
   int num = 10000;
   std::vector<Key> keys(num);
@@ -22,10 +22,9 @@ void RunWorker() {
   int rank = MyRank();
   srand(rank + 7);
   for (int i = 0; i < num; ++i) {
-    keys[i] = kMaxKey / num * i + rank;
+    keys[i] = kMaxKey / num * i + customer_id;
     vals[i] = (rand() % 1000);
   }
-
   // push
   int repeat = 50;
   std::vector<int> ts;
@@ -47,16 +46,25 @@ void RunWorker() {
   }
   CHECK_LT(res / repeat, 1e-5);
   LL << "error: " << res / repeat;
+  // stop system
+  Finalize(customer_id, true);
 }
 
 int main(int argc, char *argv[]) {
   // start system
-  Start(0);
-  // setup server nodes
-  StartServer();
+  bool isWorker = (strcmp(argv[1], "worker") == 0);
+  if (!isWorker) {
+    Start(0);
+    // setup server nodes
+    StartServer();
+    Finalize(0, true);
+    return 0;
+  }
   // run worker nodes
-  RunWorker();
-  // stop system
-  Finalize(0, true);
+  std::thread t0(RunWorker, 0);
+  std::thread t1(RunWorker, 1);
+
+  t0.join();
+  t1.join();
   return 0;
 }
