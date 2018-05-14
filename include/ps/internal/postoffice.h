@@ -161,6 +161,12 @@ class Postoffice {
    */
   std::vector<int> GetDeadNodes(int t = 60);
 
+  /**
+   * \brief set server_key_ranges_ which is used for slicing
+   * \param max_key: the max index of keys.
+   */
+  void SetServerKeyRanges(Key max_key);
+
  private:
   Postoffice();
   ~Postoffice() { delete van_; }

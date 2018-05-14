@@ -178,6 +178,17 @@ const std::vector<Range>& Postoffice::GetServerKeyRanges() {
   return server_key_ranges_;
 }
 
+void Postoffice::SetServerKeyRanges(Key max_key) {
+  server_key_ranges_mu_.lock();
+  for (int i = 0; i < num_servers_; ++ i) {
+    server_key_ranges_.push_back(Range(
+      max_key / num_servers_ * i,
+      max_key / num_servers_ * (i + 1)
+    ));
+  }
+  server_key_ranges_mu_.unlock();
+}
+
 void Postoffice::Manage(const Message& recv) {
   CHECK(!recv.meta.control.empty());
   const auto& ctrl = recv.meta.control;
