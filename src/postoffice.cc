@@ -183,7 +183,7 @@ void Postoffice::SetServerKeyRanges(Key max_key) {
   for (int i = 0; i < num_servers_; ++ i) {
     server_key_ranges_.push_back(Range(
       max_key / num_servers_ * i,
-      max_key / num_servers_ * (i + 1)
+      (i == num_servers_ - 1) ? max_key : max_key / num_servers_ * (i + 1)
     ));
   }
   server_key_ranges_mu_.unlock();
