@@ -8,6 +8,7 @@
 #include <vector>
 #include "ps/base.h"
 #include "ps/simple_app.h"
+#include "src/base/vector.h"
 namespace ps {
 
 /**
@@ -154,6 +155,18 @@ class KVWorker : public SimpleApp {
    */
   int Pull(const std::vector<Key>& keys,
            std::vector<Val>* vals,
+           std::vector<int>* lens = nullptr,
+           int cmd = 0,
+           const Callback& cb = nullptr) {
+    return Pull_(SArray<Key>(keys), vals, lens, cmd, cb);
+  }
+
+  /**
+   * \brief Used for 'container' which has the
+   * data() / size() / resize() / empty() method.
+   * */
+  int Pull(const std::vector<Key>& keys,
+           xLearn::Vector<Val>* vals,
            std::vector<int>* lens = nullptr,
            int cmd = 0,
            const Callback& cb = nullptr) {
@@ -569,6 +582,10 @@ int KVWorker<Val>::Pull_(
       size_t total_key = 0, total_val = 0;
       for (const auto& s : kvs) {
         Range range = FindRange(keys, s.keys.front(), s.keys.back()+1);
+        LOG(INFO) << "range.begin=" << range.begin() << "||range.end=" << range.end() << std::endl;
+        LOG(INFO) << "s.keys.size=" << s.keys.size() << std::endl;
+        LOG(INFO) << "s.keys.back=" << s.keys.back() << std::endl;
+        LOG(INFO) << "keys.back=" << keys.back() << std::endl;
         CHECK_EQ(range.size(), s.keys.size())
             << "unmatched keys size from one server";
         if (lens) CHECK_EQ(s.lens.size(), s.keys.size());
